@@ -6,6 +6,8 @@ using UnityEngine;
 public class TrafficGame : MonoBehaviour
 {
     Material road, grass, white, yellow, red, green, dark, blue, orange;
+    GameObject[] lamps = new GameObject[4];
+    int phase;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void StartGame()
@@ -64,6 +66,17 @@ public class TrafficGame : MonoBehaviour
                 Box("Crosswalk", new Vector3(side * 8, .1f, j), new Vector3(.6f, .02f, 1.1f), white);
             }
         }
+        Vector3[] poles = { new Vector3(-7, 1.6f, -7), new Vector3(7, 1.6f, 7),
+                            new Vector3(-7, 1.6f, 7), new Vector3(7, 1.6f, -7) };
+        for (int i = 0; i < 4; i++)
+        {
+            Box("Signal post", new Vector3(poles[i].x, .8f, poles[i].z), new Vector3(.25f, 1.6f, .25f), dark);
+            Box("Signal housing", poles[i], new Vector3(.65f, 1.2f, .65f), dark);
+            lamps[i] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            lamps[i].name = "Signal light";
+            lamps[i].transform.position = poles[i] + Vector3.up * .28f;
+            lamps[i].transform.localScale = Vector3.one * .48f;
+        }
         for (int x = -1; x <= 1; x += 2)
             for (int z = -1; z <= 1; z += 2)
             {
@@ -84,5 +97,12 @@ public class TrafficGame : MonoBehaviour
         light.type = LightType.Directional;
         light.transform.rotation = Quaternion.Euler(50, -30, 0);
         light.intensity = 1.4f;
+        UpdateLamps();
+    }
+
+    void UpdateLamps()
+    {
+        for (int i = 0; i < lamps.Length; i++)
+            lamps[i].GetComponent<Renderer>().material = (i < 2 ? 0 : 1) == phase ? green : red;
     }
 }
