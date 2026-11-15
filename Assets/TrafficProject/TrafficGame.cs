@@ -5,6 +5,16 @@ using UnityEngine;
 // The whole demonstration uses Unity primitives so it is easy to inspect and change.
 public class TrafficGame : MonoBehaviour
 {
+    class Car
+    {
+        public GameObject body;
+        public int direction;
+        public float distance;
+        public float wait;
+    }
+
+    readonly List<Car> cars = new List<Car>();
+    readonly System.Random random = new System.Random(42);
     Material road, grass, white, yellow, red, green, dark, blue, orange;
     GameObject[] lamps = new GameObject[4];
     int phase;
@@ -98,6 +108,24 @@ public class TrafficGame : MonoBehaviour
         light.transform.rotation = Quaternion.Euler(50, -30, 0);
         light.intensity = 1.4f;
         UpdateLamps();
+    }
+
+    void Spawn(int direction)
+    {
+        Car c = new Car { direction = direction, distance = 37 };
+        c.body = Box("Car " + (direction < 2 ? "NS" : "EW"), Vector3.zero,
+            direction < 2 ? new Vector3(1.6f, .8f, 2.5f) : new Vector3(2.5f, .8f, 1.6f),
+            direction % 2 == 0 ? blue : orange);
+        PositionCar(c);
+        cars.Add(c);
+    }
+
+    void PositionCar(Car c)
+    {
+        Vector3 p = c.direction == 0 ? new Vector3(-3, .55f, c.distance) :
+                    c.direction == 1 ? new Vector3(3, .55f, -c.distance) :
+                    c.direction == 2 ? new Vector3(c.distance, .55f, 3) : new Vector3(-c.distance, .55f, -3);
+        c.body.transform.position = p;
     }
 
     void UpdateLamps()
