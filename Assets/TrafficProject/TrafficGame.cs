@@ -17,7 +17,8 @@ public class TrafficGame : MonoBehaviour
     readonly System.Random random = new System.Random(42);
     Material road, grass, white, yellow, red, green, dark, blue, orange;
     GameObject[] lamps = new GameObject[4];
-    int phase;
+    int phase, passed;
+    float timer, spawnTimer, totalWait;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void StartGame()
@@ -108,6 +109,32 @@ public class TrafficGame : MonoBehaviour
         light.transform.rotation = Quaternion.Euler(50, -30, 0);
         light.intensity = 1.4f;
         UpdateLamps();
+    }
+
+    void Update()
+    {
+        float dt = Time.deltaTime;
+        timer += dt; spawnTimer += dt;
+        if (spawnTimer >= 1.7f)
+        {
+            spawnTimer = 0;
+            Spawn(random.Next(4));
+        }
+        for (int i = cars.Count - 1; i >= 0; i--)
+        {
+            Car c = cars[i];
+            bool greenNow = (c.direction < 2 ? 0 : 1) == phase;
+            bool stop = !greenNow && c.distance > 7.5f && c.distance < 11.5f;
+            float speed = stop ? 0 : 5.8f;
+            // Keep a little spacing between cars in the same lane.
+            foreach (Car other in cars)
+                if (other != c && other.direction == c.direction && other.distance < c.distance && c.distance - other.distance < 3.3f)
+                    speed = Mathf.Min(speed, Mathf.Max(0, (c.distance - other.distance - 2.5f) * 2));
+            c.distance -= speed * dt;
+            if (speed < .2f) { c.wait += dt; totalWait += dt; }
+            PositionCar(c);
+            if (c.distance < -38) { Destroy(c.body); cars.RemoveAt(i); passed++; }
+        }
     }
 
     void Spawn(int direction)
