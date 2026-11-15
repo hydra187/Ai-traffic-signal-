@@ -20,6 +20,7 @@ public class TrafficGame : MonoBehaviour
     GameObject[] lamps = new GameObject[4];
     int phase, passed, switches;
     float timer, spawnTimer, decisionTimer, totalWait;
+    bool learned = true, paused;
     const float DecisionSeconds = 7f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -139,6 +140,7 @@ public class TrafficGame : MonoBehaviour
 
     void Update()
     {
+        if (paused) return;
         float dt = Time.deltaTime;
         timer += dt; spawnTimer += dt; decisionTimer += dt;
         if (spawnTimer >= 1.7f)
@@ -151,7 +153,7 @@ public class TrafficGame : MonoBehaviour
         if (decisionTimer >= DecisionSeconds)
         {
             decisionTimer = 0;
-            int next = Best(Bucket(ns), Bucket(ew));
+            int next = learned ? Best(Bucket(ns), Bucket(ew)) : 1 - phase;
             if (next != phase) { phase = next; switches++; UpdateLamps(); }
         }
         for (int i = cars.Count - 1; i >= 0; i--)
@@ -193,5 +195,25 @@ public class TrafficGame : MonoBehaviour
     {
         for (int i = 0; i < lamps.Length; i++)
             lamps[i].GetComponent<Renderer>().material = (i < 2 ? 0 : 1) == phase ? green : red;
+    }
+
+    void OnGUI()
+    {
+        GUI.Box(new Rect(16, 16, 335, 224), "AI TRAFFIC SIGNAL CONTROLLER");
+        GUI.Label(new Rect(30, 48, 300, 25), "Mode: " + (learned ? "Q-learning AI" : "Fixed alternating"));
+        GUI.Label(new Rect(30, 73, 300, 25), "Green: " + (phase == 0 ? "North / South" : "East / West"));
+        GUI.Label(new Rect(30, 98, 300, 25), "Cars passed: " + passed + "    Waiting: " + totalWait.ToString("0") + " s");
+        GUI.Label(new Rect(30, 123, 300, 25), "Signal changes: " + switches + "    Time: " + timer.ToString("0") + " s");
+        if (GUI.Button(new Rect(30, 154, 145, 32), learned ? "Use fixed timing" : "Use Q-learning"))
+        { learned = !learned; ResetRun(); }
+        if (GUI.Button(new Rect(185, 154, 145, 32), paused ? "Resume" : "Pause")) paused = !paused;
+        GUI.Label(new Rect(30, 196, 300, 25), "Compare modes using cars passed and wait time.");
+    }
+
+    void ResetRun()
+    {
+        foreach (Car c in cars) Destroy(c.body);
+        cars.Clear(); timer = 0; spawnTimer = 0; decisionTimer = 0; totalWait = 0; passed = 0; switches = 0; phase = 0;
+        UpdateLamps();
     }
 }
