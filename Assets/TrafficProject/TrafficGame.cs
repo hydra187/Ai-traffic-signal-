@@ -14,11 +14,13 @@ public class TrafficGame : MonoBehaviour
     }
 
     readonly List<Car> cars = new List<Car>();
+    readonly float[,,] q = new float[3, 3, 2];
     readonly System.Random random = new System.Random(42);
     Material road, grass, white, yellow, red, green, dark, blue, orange;
     GameObject[] lamps = new GameObject[4];
-    int phase, passed;
-    float timer, spawnTimer, totalWait;
+    int phase, passed, switches;
+    float timer, spawnTimer, decisionTimer, totalWait;
+    const float DecisionSeconds = 7f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void StartGame()
@@ -39,6 +41,7 @@ public class TrafficGame : MonoBehaviour
         blue = Mat(new Color(.22f, .5f, .79f));
         orange = Mat(new Color(.94f, .49f, .22f));
         BuildScene();
+        Train();
     }
 
     Material Mat(Color color)
@@ -111,14 +114,45 @@ public class TrafficGame : MonoBehaviour
         UpdateLamps();
     }
 
+    void Train()
+    {
+        // Small tabular Q-learning exercise: state = low/medium/high queue for each road.
+        // Action 0 gives north/south green; action 1 gives east/west green.
+        const float alpha = .18f, gamma = .85f;
+        for (int episode = 0; episode < 4000; episode++)
+        {
+            int ns = random.Next(3), ew = random.Next(3), current = random.Next(2);
+            for (int step = 0; step < 24; step++)
+            {
+                int action = random.NextDouble() < .18 ? random.Next(2) : Best(ns, ew);
+                int nextNs = Mathf.Clamp(ns + random.Next(2) - (action == 0 ? 1 : 0), 0, 2);
+                int nextEw = Mathf.Clamp(ew + random.Next(2) - (action == 1 ? 1 : 0), 0, 2);
+                float reward = -(nextNs + nextEw) - (action == current ? 0 : .3f);
+                q[ns, ew, action] += alpha * (reward + gamma * Mathf.Max(q[nextNs, nextEw, 0], q[nextNs, nextEw, 1]) - q[ns, ew, action]);
+                ns = nextNs; ew = nextEw; current = action;
+            }
+        }
+    }
+
+    int Best(int ns, int ew) { return q[ns, ew, 0] >= q[ns, ew, 1] ? 0 : 1; }
+    int Bucket(int count) { return count < 2 ? 0 : count < 5 ? 1 : 2; }
+
     void Update()
     {
         float dt = Time.deltaTime;
-        timer += dt; spawnTimer += dt;
+        timer += dt; spawnTimer += dt; decisionTimer += dt;
         if (spawnTimer >= 1.7f)
         {
             spawnTimer = 0;
             Spawn(random.Next(4));
+        }
+        int ns = 0, ew = 0;
+        foreach (Car c in cars) if (c.distance > 7 && c.distance < 22) { if (c.direction < 2) ns++; else ew++; }
+        if (decisionTimer >= DecisionSeconds)
+        {
+            decisionTimer = 0;
+            int next = Best(Bucket(ns), Bucket(ew));
+            if (next != phase) { phase = next; switches++; UpdateLamps(); }
         }
         for (int i = cars.Count - 1; i >= 0; i--)
         {
